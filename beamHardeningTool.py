@@ -33,8 +33,7 @@ def HR(H:float, S:float):
 class Material:
     def __init__(self, ρ:float, massAttenData=np.array(list(zip([0],[0])))):
         self.nominalDensity = ρ # [g/cc]
-        if massAttenData != np.array(list(zip([0],[0]))):
-            self.attenuationData = massAttenData
+        self.attenuationData = massAttenData
 
     def grabAttenuationCoeffs(self, path):
         data = np.genfromtxt(path, delimiter=" ", skip_header=2)
@@ -63,17 +62,46 @@ class Node:
         return np.exp(-μ*δprime)
     
 class Beamline:
-    def __init__(self, SOD:float, SDD:float):
+    def __init__(self, SOD:float, SDD:float, S:float=1.0):
         self.SOD = SOD
         self.SDD = SDD
+        self.Source = S
+        self.nodeList = []
+
+    def defineSoure(self, I0, x0):
+        self.Source = I0*(4*np.pi*x0**2)
 
     def addNode(self, Node:Node, x:float):
         SDD = self.SDD
-        SOD = self.SOD
+        # SOD = self.SOD
         if x > SDD:
             x = SDD
         if x < 0:
             x = 0
+        self.nodeList.append((Node,x))
+        self.nodeList = sorted(self.nodeList, key = lambda x: x[1])
+        
+    def matAtten(self, E:float, θ=0.0):
+        I = 1.0
+        for item in self.nodeList:
+            node = item[0]
+            # pos = item[1]
+            I = I*node.matAtten(E, θ)
+        return I
+
+    def geomAtten(self, θ=0.0):
+        SDDprime = self.SDD/np.cos(θ)
+        I = self.Source/(4*np.pi*(SDDprime**2))
+        return I
+
+    def totalAtten(self, E:float, θ=0.0):
+        return self.matAtten(E, θ)*self.geomAtten(θ)
+
+def initSpectrum(V:float, N:int=10):
+    logE = np.linspace(0,np.log(V),N)
+    E = np.exp(logE)
+    I = (2/V)-((2*E)/(V**2))
+    return E, I
 
 CuData = np.genfromtxt(f'CrossSectionData{os.path.sep}Cu_XCOM.txt', delimiter=" ", skip_header=2)
 InconelData = np.genfromtxt(f'CrossSectionData{os.path.sep}Inconel_XCOM.txt', delimiter=" ", skip_header=2)
@@ -88,10 +116,47 @@ IncEnergies = InconelData[:,0] # [MeV]
 IncCoeffs = InconelData[:,1] # [cm^2/g]
 IncDensity = 8.43 # [g/cc]
 IncCoeffs = IncCoeffs*IncDensity # [cm^-1]
+IncMuData = np.array(list(zip(IncEnergies,IncCoeffs)))
 #IncCoeffsNoCoh = InconelData[:,2]
 
-plt.plot(CuEnergies, CuCoeffs)
-plt.plot(IncEnergies, IncCoeffs)
-plt.yscale('log')
-plt.xscale('log')
+# plt.plot(CuEnergies, CuCoeffs)
+# plt.plot(IncEnergies, IncCoeffs)
+# plt.yscale('log')
+# plt.xscale('log')
+# plt.show()
+
+EArray, IArray = initSpectrum(9E6, 100)
+# plt.plot(E, I, '.')
+# plt.yscale('log')
+# plt.xscale('log')
+# plt.show()
+
+SOD = 100 # [cm]
+SDD = 300 # [cm]
+myWorld = Beamline(SOD, SDD)
+CuMat = Material(CuDensity, CuMuData)
+CuThickness = 1 # [cm]
+CuFilter = Node(CuMat, CuThickness, CuDensity)
+myWorld.addNode(CuFilter, 0)
+IncMat = Material(IncDensity, IncMuData)
+IncThickness = 10 # [cm]
+Object = Node(IncMat, IncThickness, IncDensity)
+myWorld.addNode(Object, SOD)
+
+v = 42.7 # [cm]
+N = 100 # elements
+x = np.linspace(-v/2, v/2, N)
+y = np.linspace(-v/2, v/2, N)
+xx, yy = np.meshgrid(x, y)
+θ = np.arctan(np.sqrt(xx**2 + yy**2)/SDD)
+print(θ)
+
+IOut = np.zeros_like(IArray)
+for i in range(len(EArray)):
+    E = EArray[i]
+    IOut[i] = IArray[i]*myWorld.totalAtten(E,0)
+
+plt.plot(EArray, IOut)
+# plt.yscale('log')
+# plt.xscale('log')
 plt.show()
