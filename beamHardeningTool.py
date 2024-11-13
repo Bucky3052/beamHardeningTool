@@ -59,7 +59,7 @@ class Node:
     def matAtten(self, E:float, θ=0.0):
         δprime = self.thickness/np.cos(θ)
         μ = self.material.μ(E, self.density)
-        return np.exp(-μ*δprime)
+        return Intensity(1, μ, δprime)
     
 class Beamline:
     def __init__(self, SOD:float, SDD:float, S:float=1.0):
@@ -98,8 +98,9 @@ class Beamline:
         return self.matAtten(E, θ)*self.geomAtten(θ)
 
 def initSpectrum(V:float, N:int=10):
-    logE = np.linspace(0,np.log(V),N)
-    E = np.exp(logE)
+    # logE = np.linspace(0,np.log(V),N)
+    # E = np.exp(logE)
+    E = np.linspace(0, V, N)
     I = (2/V)-((2*E)/(V**2))
     return E, I
 
@@ -109,13 +110,13 @@ InconelData = np.genfromtxt(f'CrossSectionData{os.path.sep}Inconel_XCOM.txt', de
 CuEnergies = CuData[:,0] # [MeV]
 CuCoeffs = CuData[:,1] # [cm^2/g]
 CuDensity = 8.96 # [g/cc]
-CuCoeffs = CuCoeffs*CuDensity # [cm^-1]
+CuCoeffs = CrossSection(CuCoeffs,CuDensity) # [cm^-1]
 CuMuData = np.array(list(zip(CuEnergies,CuCoeffs)))
 #coeffsNoCoh = CuData[:,2]
 IncEnergies = InconelData[:,0] # [MeV]
 IncCoeffs = InconelData[:,1] # [cm^2/g]
 IncDensity = 8.43 # [g/cc]
-IncCoeffs = IncCoeffs*IncDensity # [cm^-1]
+IncCoeffs = CrossSection(IncCoeffs,IncDensity) # [cm^-1]
 IncMuData = np.array(list(zip(IncEnergies,IncCoeffs)))
 #IncCoeffsNoCoh = InconelData[:,2]
 
@@ -125,7 +126,7 @@ IncMuData = np.array(list(zip(IncEnergies,IncCoeffs)))
 # plt.xscale('log')
 # plt.show()
 
-EArray, IArray = initSpectrum(9E6, 100)
+EArray, IArray = initSpectrum(9, 1000)
 # plt.plot(E, I, '.')
 # plt.yscale('log')
 # plt.xscale('log')
@@ -133,9 +134,9 @@ EArray, IArray = initSpectrum(9E6, 100)
 
 SOD = 100 # [cm]
 SDD = 300 # [cm]
-myWorld = Beamline(SOD, SDD)
+myWorld = Beamline(SOD, SDD, 1E9)
 CuMat = Material(CuDensity, CuMuData)
-CuThickness = 1 # [cm]
+CuThickness = 2.5 # [cm]
 CuFilter = Node(CuMat, CuThickness, CuDensity)
 myWorld.addNode(CuFilter, 0)
 IncMat = Material(IncDensity, IncMuData)
@@ -149,14 +150,26 @@ x = np.linspace(-v/2, v/2, N)
 y = np.linspace(-v/2, v/2, N)
 xx, yy = np.meshgrid(x, y)
 θ = np.arctan(np.sqrt(xx**2 + yy**2)/SDD)
-print(θ)
 
 IOut = np.zeros_like(IArray)
+Hi = 0
+Si = 0
+H = 0
+S = 0
+thres = 2 # [MeV]
 for i in range(len(EArray)):
     E = EArray[i]
-    IOut[i] = IArray[i]*myWorld.totalAtten(E,0)
+    IOut[i] = IArray[i]*myWorld.matAtten(E)
+    if E > thres:
+        Hi += IArray[i]
+        H += IOut[i]
+    else:
+        Si += IArray[i]
+        S += IOut[i]
 
 plt.plot(EArray, IOut)
 # plt.yscale('log')
 # plt.xscale('log')
-plt.show()
+# plt.show()
+print('Initial HR:', HR(Hi,Si))
+print('Final HR:', HR(H,S))
