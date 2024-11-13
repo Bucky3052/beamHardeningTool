@@ -45,7 +45,7 @@ class Material:
         if ρ == None:
             ρ = self.nominalDensity
         logEp = np.log10(self.attenuationData[:,0])
-        logμp = np.log10(ρ*self.attenuationData[:,1])
+        logμp = np.log10(CrossSection(self.attenuationData[:,1],ρ))
         return np.power(10.0, np.interp(E, logEp, logμp))
 
 class Node:
@@ -110,13 +110,11 @@ InconelData = np.genfromtxt(f'CrossSectionData{os.path.sep}Inconel_XCOM.txt', de
 CuEnergies = CuData[:,0] # [MeV]
 CuCoeffs = CuData[:,1] # [cm^2/g]
 CuDensity = 8.96 # [g/cc]
-CuCoeffs = CrossSection(CuCoeffs,CuDensity) # [cm^-1]
 CuMuData = np.array(list(zip(CuEnergies,CuCoeffs)))
 #coeffsNoCoh = CuData[:,2]
 IncEnergies = InconelData[:,0] # [MeV]
 IncCoeffs = InconelData[:,1] # [cm^2/g]
 IncDensity = 8.43 # [g/cc]
-IncCoeffs = CrossSection(IncCoeffs,IncDensity) # [cm^-1]
 IncMuData = np.array(list(zip(IncEnergies,IncCoeffs)))
 #IncCoeffsNoCoh = InconelData[:,2]
 
@@ -126,8 +124,8 @@ IncMuData = np.array(list(zip(IncEnergies,IncCoeffs)))
 # plt.xscale('log')
 # plt.show()
 
-EArray, IArray = initSpectrum(9, 1000)
-# plt.plot(E, I, '.')
+EArray, IArray = initSpectrum(9, 100)
+# plt.plot(EArray, IArray, '.')
 # plt.yscale('log')
 # plt.xscale('log')
 # plt.show()
@@ -142,21 +140,21 @@ myWorld.addNode(CuFilter, 0)
 IncMat = Material(IncDensity, IncMuData)
 IncThickness = 10 # [cm]
 Object = Node(IncMat, IncThickness, IncDensity)
-myWorld.addNode(Object, SOD)
+#myWorld.addNode(Object, SOD)
 
 v = 42.7 # [cm]
-N = 100 # elements
+N = 20 # elements
 x = np.linspace(-v/2, v/2, N)
 y = np.linspace(-v/2, v/2, N)
 xx, yy = np.meshgrid(x, y)
-θ = np.arctan(np.sqrt(xx**2 + yy**2)/SDD)
+θArray = np.arctan(np.sqrt(xx**2 + yy**2)/SDD)
 
 IOut = np.zeros_like(IArray)
 Hi = 0
 Si = 0
 H = 0
 S = 0
-thres = 2 # [MeV]
+thres = 1 # [MeV]
 for i in range(len(EArray)):
     E = EArray[i]
     IOut[i] = IArray[i]*myWorld.matAtten(E)
@@ -168,8 +166,46 @@ for i in range(len(EArray)):
         S += IOut[i]
 
 plt.plot(EArray, IOut)
+plt.xlabel('Energy [MeV]')
+plt.ylabel('Intensity (Normalized)')
+plt.title('Beamline Spectrum at Detector Centerpoint')
 # plt.yscale('log')
 # plt.xscale('log')
-# plt.show()
+plt.show()
 print('Initial HR:', HR(Hi,Si))
 print('Final HR:', HR(H,S))
+
+HRArray = np.zeros_like(θArray)
+H_tot = 0
+S_tot = 0
+i = 0
+for θList in θArray:
+    j = 0
+    for θ in θList:
+        H = 0
+        S = 0
+        for k in range(len(EArray)):
+            E = EArray[k]
+            IOut = IArray[k]*myWorld.matAtten(E,θ)
+            if E > thres:
+                H += IOut
+            else:
+                S += IOut
+        HRArray[i,j] = HR(H,S)
+        H_tot += H
+        S_tot += S
+        j+=1
+    i+=1
+
+finalHR = HR(H_tot, S_tot)
+print('Final HR (Geometric Correction):', finalHR)
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+surf = ax.plot_surface(xx, yy, HRArray, cmap='viridis')
+ax.set_xlabel('Pixel X [cm]')
+ax.set_ylabel('Pixel Y [cm]')
+ax.set_zlabel('Hardness Ratio')
+plt.title('Beam Hardness along Detector')
+fig.colorbar(surf)
+plt.show()
