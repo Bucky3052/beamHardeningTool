@@ -123,18 +123,20 @@ IncMuData = np.array(list(zip(IncEnergies,IncCoeffs)))
 # plt.yscale('log')
 # plt.xscale('log')
 # plt.show()
+# plt.close()
 
 EArray, IArray = initSpectrum(9, 100)
 # plt.plot(EArray, IArray, '.')
 # plt.yscale('log')
 # plt.xscale('log')
 # plt.show()
+# plt.close()
 
 SOD = 100 # [cm]
 SDD = 300 # [cm]
 myWorld = Beamline(SOD, SDD, 1E9)
 CuMat = Material(CuDensity, CuMuData)
-CuThickness = 2.5 # [cm]
+CuThickness = 2.54 # [cm]
 CuFilter = Node(CuMat, CuThickness, CuDensity)
 myWorld.addNode(CuFilter, 0)
 IncMat = Material(IncDensity, IncMuData)
@@ -144,8 +146,8 @@ Object = Node(IncMat, IncThickness, IncDensity)
 
 v = 42.7 # [cm]
 N = 20 # elements
-x = np.linspace(-v/2, v/2, N)
-y = np.linspace(-v/2, v/2, N)
+x = np.linspace(0, v/2, N)
+y = np.linspace(0, v/2, N) # just first quadrant of detector, as the others are symmetric
 xx, yy = np.meshgrid(x, y)
 θArray = np.arctan(np.sqrt(xx**2 + yy**2)/SDD)
 
@@ -172,6 +174,7 @@ plt.title('Beamline Spectrum at Detector Centerpoint')
 # plt.yscale('log')
 # plt.xscale('log')
 plt.show()
+plt.close()
 print('Initial HR:', HR(Hi,Si))
 print('Final HR:', HR(H,S))
 
@@ -208,4 +211,23 @@ ax.set_ylabel('Pixel Y [cm]')
 ax.set_zlabel('Hardness Ratio')
 plt.title('Beam Hardness along Detector')
 fig.colorbar(surf)
+plt.show()
+plt.close()
+
+CuFilterData = np.array([[0.1, 0.549331],
+                         [0.5, 0.559644],
+                         [1.0, 0.571791],
+                         [2.5, 0.603786],
+                         [5.0, 0.645096],
+                         [10.0, 0.698236],
+                         [20.0, 0.749750],
+                         [25.0, 0.763821],
+                         [50.0, 0.797759],
+                         [100.0, 0.816421]])
+
+plt.plot(CuFilterData[:,0], CuFilterData[:,1], '.')
+plt.xlabel('Cu Thickness [cm]')
+plt.ylabel('Terminal Beam Hardness')
+plt.title('Beam Hardening due to Copper Filter')
+plt.xscale('log')
 plt.show()
