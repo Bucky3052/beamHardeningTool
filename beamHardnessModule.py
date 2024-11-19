@@ -98,6 +98,12 @@ class Beamline:
         return self.matAtten(E, θ)*self.geomAtten(θ)
 
 def initSpectrum(V:float, N:int=10):
+    '''
+    Function for generating an initial, ideal X-ray spectrum
+    :param V: Applied potential in MegaVolts [MV]
+    :param N: Number of points to resolve in Spectrum
+    :return: Normalized Intensity 'I' against Energy 'E' [MeV]
+    '''
     # logE = np.linspace(0,np.log(V),N)
     # E = np.exp(logE)
     E = np.linspace(0, V, N)
@@ -111,123 +117,3 @@ def xSectDataFromFile(filepath):
     # coeffsNoCoh = data[:,2] # [cm^2/g]
     MuData = np.array(list(zip(Energies,Coeffs)))
     return MuData
-
-CuDensity = 8.96 # [g/cc]
-CuMuData = xSectDataFromFile(f'CrossSectionData{os.path.sep}Cu_XCOM.txt')
-IncDensity = 8.43 # [g/cc]
-IncMuData = xSectDataFromFile(f'CrossSectionData{os.path.sep}Inconel_XCOM.txt')
-
-# plt.plot(CuEnergies, CuCoeffs)
-# plt.plot(IncEnergies, IncCoeffs)
-# plt.yscale('log')
-# plt.xscale('log')
-# plt.show()
-# plt.close()
-
-EArray, IArray = initSpectrum(9, 100)
-# plt.plot(EArray, IArray, '.')
-# plt.yscale('log')
-# plt.xscale('log')
-# plt.show()
-# plt.close()
-
-SOD = 100 # [cm]
-SDD = 300 # [cm]
-myWorld = Beamline(SOD, SDD, 1E9)
-CuMat = Material(CuDensity, CuMuData)
-CuThickness = 2.54 # [cm]
-CuFilter = Node(CuMat, CuThickness, CuDensity)
-myWorld.addNode(CuFilter, 0)
-IncMat = Material(IncDensity, IncMuData)
-IncThickness = 10 # [cm]
-Object = Node(IncMat, IncThickness, IncDensity)
-#myWorld.addNode(Object, SOD)
-
-v = 42.7 # [cm]
-u = v
-N = 20 # elements
-x = np.linspace(0, u/2, N)
-y = np.linspace(0, v/2, N) # just first quadrant of detector, as the others are symmetric
-xx, yy = np.meshgrid(x, y)
-θArray = np.arctan(np.sqrt(xx**2 + yy**2)/SDD)
-
-IOut = np.zeros_like(IArray)
-Hi = 0
-Si = 0
-H = 0
-S = 0
-thres = 1 # [MeV]
-for i in range(len(EArray)):
-    E = EArray[i]
-    IOut[i] = IArray[i]*myWorld.matAtten(E)
-    if E > thres:
-        Hi += IArray[i]
-        H += IOut[i]
-    else:
-        Si += IArray[i]
-        S += IOut[i]
-
-plt.plot(EArray, IOut)
-plt.xlabel('Energy [MeV]')
-plt.ylabel('Intensity (Normalized)')
-plt.title('Beamline Spectrum at Detector Centerpoint')
-# plt.yscale('log')
-# plt.xscale('log')
-plt.show()
-plt.close()
-print('Initial HR:', HR(Hi,Si))
-print('Final HR:', HR(H,S))
-
-HRArray = np.zeros_like(θArray)
-H_tot = 0
-S_tot = 0
-i = 0
-for θList in θArray:
-    j = 0
-    for θ in θList:
-        H = 0
-        S = 0
-        for k in range(len(EArray)):
-            E = EArray[k]
-            IOut = IArray[k]*myWorld.matAtten(E,θ)
-            if E > thres:
-                H += IOut
-            else:
-                S += IOut
-        HRArray[i,j] = HR(H,S)
-        H_tot += H
-        S_tot += S
-        j+=1
-    i+=1
-
-finalHR = HR(H_tot, S_tot)
-print('Final HR (Geometric Correction):', finalHR)
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-surf = ax.plot_surface(xx, yy, HRArray, cmap='viridis')
-ax.set_xlabel('Pixel X [cm]')
-ax.set_ylabel('Pixel Y [cm]')
-ax.set_zlabel('Hardness Ratio')
-plt.title('Beam Hardness along Detector')
-fig.colorbar(surf)
-plt.show()
-plt.close()
-
-CuFilterData = np.array([[0.1, 0.549331],
-                         [0.5, 0.559644],
-                         [1.0, 0.571791],
-                         [2.5, 0.603786],
-                         [5.0, 0.645096],
-                         [10.0, 0.698236],
-                         [20.0, 0.749750],
-                         [25.0, 0.763821],
-                         [50.0, 0.797759],
-                         [100.0, 0.816421]])
-
-plt.plot(CuFilterData[:,0], CuFilterData[:,1], '.')
-plt.xlabel('Cu Thickness [cm]')
-plt.ylabel('Terminal Beam Hardness')
-plt.title('Beam Hardening due to Copper Filter')
-plt.xscale('log')
-plt.show()
