@@ -55,6 +55,9 @@ class Node:
         if ρ==None:
             ρ = mat.nominalDensity
         self.density = ρ # [g/cc]
+
+    def setThickness(self, δ:float):
+        self.thickness = δ
     
     def matAtten(self, E:float, θ=0.0):
         δprime = self.thickness/np.cos(θ)

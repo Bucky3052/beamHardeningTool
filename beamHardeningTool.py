@@ -156,7 +156,7 @@ Hi = 0
 Si = 0
 H = 0
 S = 0
-thres = 1 # [MeV]
+thres = .100 # [MeV]
 for i in range(len(EArray)):
     E = EArray[i]
     IOut[i] = IArray[i]*myWorld.matAtten(E)
