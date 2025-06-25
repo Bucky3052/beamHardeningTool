@@ -2,6 +2,7 @@ import beamHardnessModule as bhm
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from itertools import combinations
 
 # Import Material Data Files
 CuDensity = 8.96 # [g/cc]
@@ -22,14 +23,21 @@ CuMat = bhm.Material(CuDensity, CuMuData)
 CuThickness = 2.54 # [cm]
 CuFilter = bhm.Node(CuMat, CuThickness, CuDensity)
 myWorld.addNode(CuFilter, 0)
-CuTestThickns = 2.54*np.array([0.04,0.25,0.5,1]) # [cm]
+CuFilterThicknesses = 2.54*np.array([0.25,0.5,1]) # [in -> cm]
+CuTestThickns = [0.0, 2.54*0.04] # for filters not worth combining[in -> cm]
+#2.54*np.array([0.0,0.04,0.25,0.5,1,1.25,1.5,1.75,1.79]) # [cm]
+for count in range(1, len(CuFilterThicknesses)+1):
+    for t in combinations(CuFilterThicknesses, count):
+        CuTestThickns.append(float(sum(t)))
+CuTestThickns = sorted(CuTestThickns)
+print(CuTestThickns)
 
 # Inconel Sample Object Node (Initial)
 IncMat = bhm.Material(IncDensity, IncMuData)
-IncThickness = 10 # [cm]
+IncThickness = 5 # [cm]
 Object = bhm.Node(IncMat, IncThickness, IncDensity)
 myWorld.addNode(Object, SOD)
-IncTestPts = np.arange(0, IncThickness, 1) # [cm]
+IncTestPts = np.arange(0, IncThickness, 0.1) # [cm]
 
 # Determine Initial HR
 thres = 0.100 # [MeV]
@@ -66,21 +74,21 @@ for δ_Cu in CuTestThickns:
         HR = bhm.HR(H,S)
         HRArray = np.append(HRArray, HR)
         attenArray = np.append(attenArray, sum(IOut)/sum(IArray))
-    dIdx = np.append(dIdx, -(attenArray[-1]-attenArray[0])/(IncTestPts[-1]-IncTestPts[0])/attenArray[0])
+    dIdx = np.append(dIdx, -(attenArray[-1]-attenArray[0])/(IncTestPts[-1]-IncTestPts[0]))
     dHRdx = np.append(dHRdx, (HRArray[-1]-HRArray[0])/(IncTestPts[-1]-IncTestPts[0]))
-    plt.plot(IncTestPts, attenArray, label=f"{δ_Cu:.3g} cm")
+    plt.plot(IncTestPts, HRArray, label=f"{δ_Cu:.3g} cm")
 plt.plot(0, HRi, 'x')
 plt.legend(title='Cu Filter Thickness')
-plt.title('Attenuation Nonlinearity through Sample due to Beam Hardening')
+plt.title('Beam Hardening Through Sample')
 plt.xlabel('Depth through Sample [cm]')
-plt.ylabel('Attenuation')
-plt.xscale('log')
+plt.ylabel('Hardness Ratio')
+# plt.xscale('log')
 plt.show()
 plt.close()
 
-plt.plot(CuTestThickns, dIdx)
-plt.title('Attenuation Variability Against Filter Thickness')
+plt.plot(CuTestThickns, dHRdx)
+plt.title('Hardness Ratio Variability Against Filter Thickness')
 plt.xlabel('Cu Filter Thickness [cm]')
-plt.ylabel(f'Average Attenuation Rate-of-Change in sample [Fraction of $I_0$]')
+plt.ylabel(f'Average HR Rate-of-Change in sample [cm^-1]')
 plt.show()
 plt.close()

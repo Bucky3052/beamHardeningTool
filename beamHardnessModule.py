@@ -107,9 +107,9 @@ def initSpectrum(V:float, N:int=10):
     :param N: Number of points to resolve in Spectrum
     :return: Normalized Intensity 'I' against Energy 'E' [MeV]
     '''
-    # logE = np.linspace(0,np.log(V),N)
-    # E = np.exp(logE)
-    E = np.linspace(0, V, N)
+    logE = np.linspace(np.log(1E-3),np.log(V),N)
+    E = np.exp(logE)
+    # E = np.linspace(0, V, N)
     I = (2/V)-((2*E)/(V**2))
     return E, I
 
