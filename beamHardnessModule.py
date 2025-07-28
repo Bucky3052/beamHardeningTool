@@ -46,7 +46,7 @@ class Material:
             ρ = self.nominalDensity
         logEp = np.log10(self.attenuationData[:,0])
         logμp = np.log10(CrossSection(self.attenuationData[:,1],ρ))
-        return np.power(10.0, np.interp(E, logEp, logμp))
+        return np.power(10.0, np.interp(np.log10(E), logEp, logμp))
 
 class Node:
     def __init__(self, mat:Material, δ:float, ρ:float=None):
