@@ -3,6 +3,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from itertools import combinations
+import pandas as pd
 # from scipy.integrate import trapezoid
 
 # Import Material Data Files
@@ -11,7 +12,10 @@ CuMuData = bhm.xSectDataFromFile(f'CrossSectionData{os.path.sep}Cu_XCOM.txt')
 
 # Initialize Energy Spectrum
 V = 9 # MeV
-EArray, IArray = bhm.initSpectrum(V, 100)
+# EArray, IArray = bhm.initSpectrum(V, 100)
+empiricalData = pd.read_csv('SpectrumDataNDA/XraySpectrum.9MV.csv', skiprows=3)
+EArray=np.array(empiricalData['UpperKeV'].tolist())/1000
+IArray=np.array(empiricalData['FluxDistribution'].tolist())
 
 # Set Up World
 SOD = 100 # [cm]
@@ -40,13 +44,13 @@ for i in range(len(EArray)):
         Si += IArray[i]
         S += IOut[i]
 
-plt.plot(EArray, IArray, 'b--', label='Unfiltered Spectrum')
+plt.plot(EArray, IArray, 'b', label='Unfiltered Spectrum', alpha=0.5)
 plt.plot(EArray, IOut, 'r', label='Filtered Spectrum')
 # plt.plot(EArray, IOut*2.025, label='Filtered Spectrum')
-# plt.yscale('log')
+plt.yscale('log')
 # plt.xscale('log')
 plt.xlim(0, V)
-plt.ylim(0)
+# plt.ylim(0)
 plt.xlabel('Energy [MeV]')
 plt.ylabel('Intensity (Normalized)')
 plt.title('Filtration Provided by 1" Copper')
